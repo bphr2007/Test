@@ -1,0 +1,92 @@
+package com.cts.productapp.api;
+
+import com.cts.productapp.model.Supplier;
+import com.cts.productapp.repository.SupplierRepository;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.Arrays;
+import java.util.Optional;
+
+import static org.hamcrest.Matchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(SupplierApi.class)
+class SupplierApiTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private SupplierRepository supplierRepository;
+
+    @Test
+    @DisplayName("GET /suppliers should return list of suppliers")
+    void testGetAllSuppliers() throws Exception {
+        Mockito.when(supplierRepository.findAll())
+                .thenReturn(Arrays.asList(
+                        new Supplier(1, "ABC Traders", "abc@traders.com"),
+                        new Supplier(2, "XYZ Distributors", "xyz@distributors.com")
+                ));
+
+        mockMvc.perform(get("/suppliers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].name", is("ABC Traders")))
+                .andExpect(jsonPath("$[1].email", is("xyz@distributors.com")));
+    }
+
+    @Test
+    @DisplayName("GET /suppliers/{id} should return supplier if found")
+    void testGetSupplierById_Found() throws Exception {
+        Supplier supplier = new Supplier(1, "ABC Traders", "abc@traders.com");
+
+        Mockito.when(supplierRepository.findById(1))
+                .thenReturn(Optional.of(supplier));
+
+        mockMvc.perform(get("/suppliers/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name", is("ABC Traders")))
+                .andExpect(jsonPath("$.email", is("abc@traders.com")));
+    }
+
+    @Test
+    @DisplayName("GET /suppliers/{id} should return 404 if not found")
+    void testGetSupplierById_NotFound() throws Exception {
+        Mockito.when(supplierRepository.findById(99))
+                .thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/suppliers/99"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("POST /suppliers should create new supplier")
+    void testCreateSupplier() throws Exception {
+        Supplier supplier = new Supplier(1, "ABC Traders", "abc@traders.com");
+
+        Mockito.when(supplierRepository.save(Mockito.any(Supplier.class)))
+                .thenReturn(supplier);
+
+        String requestBody = """
+                {
+                  "name": "ABC Traders",
+                  "email": "abc@traders.com"
+                }
+                """;
+
+        mockMvc.perform(post("/suppliers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name", is("ABC Traders")))
+                .andExpect(jsonPath("$.email", is("abc@traders.com")));
+    }
+}
